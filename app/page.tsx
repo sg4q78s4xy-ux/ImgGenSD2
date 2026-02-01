@@ -4,12 +4,21 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
-import { Sparkles, Wand2, Download } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Slider } from '@/components/ui/slider'
+import { Sparkles, Wand2, Download, Image as ImageIcon, Settings2 } from 'lucide-react'
 
 export default function Home() {
   const [prompt, setPrompt] = useState('')
+  const [negativePrompt, setNegativePrompt] = useState('')
+  const [guidanceScale, setGuidanceScale] = useState([7.5])
+  const [steps, setSteps] = useState([20])
+  const [seed, setSeed] = useState('1000000')
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return
@@ -20,7 +29,13 @@ export default function Home() {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ 
+          prompt,
+          negativePrompt,
+          guidanceScale: guidanceScale[0],
+          steps: steps[0],
+          seed: parseInt(seed) || 1000000
+        }),
       })
       
       const data = await response.json()
@@ -77,41 +92,173 @@ export default function Home() {
 
         {/* Generation Interface */}
         <div className="mx-auto max-w-4xl">
-          <Card className="p-6 md:p-8">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="prompt" className="text-sm font-medium text-foreground">
-                  Describe your image
-                </label>
-                <Textarea
-                  id="prompt"
-                  placeholder="A serene landscape with mountains at sunset, detailed, highly realistic..."
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-32 resize-none"
-                />
-              </div>
+          <Tabs defaultValue="text-to-image" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="text-to-image">
+                <Wand2 className="mr-2 h-4 w-4" />
+                Text to Image
+              </TabsTrigger>
+              <TabsTrigger value="image-to-image">
+                <ImageIcon className="mr-2 h-4 w-4" />
+                Image to Image
+              </TabsTrigger>
+            </TabsList>
 
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating || !prompt.trim()}
-                className="w-full"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Sparkles className="mr-2 h-5 w-5 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
+            <TabsContent value="text-to-image">
+              <Card className="p-6 md:p-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="prompt">Prompt</Label>
+                    <Textarea
+                      id="prompt"
+                      placeholder="a photo of an astronaut riding a horse on mars"
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      className="min-h-24 resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="negative-prompt">Negative Prompt (optional)</Label>
+                    <Textarea
+                      id="negative-prompt"
+                      placeholder="blurry, low quality, distorted"
+                      value={negativePrompt}
+                      onChange={(e) => setNegativePrompt(e.target.value)}
+                      className="min-h-16 resize-none"
+                    />
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="w-full"
+                  >
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    {showAdvanced ? 'Hide' : 'Show'} Advanced Settings
+                  </Button>
+
+                  {showAdvanced && (
+                    <div className="space-y-6 rounded-lg border border-border bg-muted/50 p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="guidance">Guidance Scale</Label>
+                          <span className="text-sm text-muted-foreground">{guidanceScale[0]}</span>
+                        </div>
+                        <Slider
+                          id="guidance"
+                          min={1}
+                          max={20}
+                          step={0.5}
+                          value={guidanceScale}
+                          onValueChange={setGuidanceScale}
+                        />
+                        <p className="text-xs text-muted-foreground">Higher values stick closer to the prompt</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="steps">Steps</Label>
+                          <span className="text-sm text-muted-foreground">{steps[0]}</span>
+                        </div>
+                        <Slider
+                          id="steps"
+                          min={10}
+                          max={50}
+                          step={5}
+                          value={steps}
+                          onValueChange={setSteps}
+                        />
+                        <p className="text-xs text-muted-foreground">More steps = better quality but slower</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="seed">Seed</Label>
+                        <Input
+                          id="seed"
+                          type="number"
+                          placeholder="1000000"
+                          value={seed}
+                          onChange={(e) => setSeed(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Use the same seed for consistent results</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isGenerating || !prompt.trim()}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Sparkles className="mr-2 h-5 w-5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="mr-2 h-5 w-5" />
+                        Generate Image
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="image-to-image">
+              <Card className="p-6 md:p-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label>Start Image</Label>
+                    <div className="rounded-lg border-2 border-dashed border-border bg-muted/50 p-8 text-center">
+                      <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Image-to-image generation coming soon
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="img2img-prompt">Prompt</Label>
+                    <Textarea
+                      id="img2img-prompt"
+                      placeholder="Describe how to modify the image..."
+                      className="min-h-24 resize-none"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Strength</Label>
+                      <span className="text-sm text-muted-foreground">0.5</span>
+                    </div>
+                    <Slider
+                      min={0}
+                      max={1}
+                      step={0.1}
+                      defaultValue={[0.5]}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      How much to transform the original image (0.0 - 1.0)
+                    </p>
+                  </div>
+
+                  <Button
+                    disabled
+                    className="w-full"
+                    size="lg"
+                  >
                     <Wand2 className="mr-2 h-5 w-5" />
-                    Generate Image
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
+                    Generate (Coming Soon)
+                  </Button>
+                </div>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
           {/* Generated Image Display */}
           {generatedImage && (
